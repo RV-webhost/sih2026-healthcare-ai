@@ -3,6 +3,7 @@ from flask import Flask
 from app.config import Config
 from app.extensions import db, migrate, jwt
 from app.api import api_bp
+from app.orchestrator.routes import orchestrator_bp
 
 
 def create_app():
@@ -18,5 +19,6 @@ def create_app():
 
     # Register shared API blueprint
     app.register_blueprint(api_bp)
+    app.register_blueprint(orchestrator_bp, url_prefix="/api/v1")
 
     return app
