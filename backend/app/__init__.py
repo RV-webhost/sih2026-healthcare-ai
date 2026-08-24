@@ -3,7 +3,8 @@ from flask import Flask
 from app.config import Config
 from app.extensions import db, migrate, jwt
 from app.api import api_bp
-from app.ai.routes import ai_bp  # <-- 1. Import your AI blueprint
+from app.ai.routes import ai_bp
+from app.tokens.routes import tokens_bp
 
 def create_app():
     app = Flask(__name__)
@@ -11,7 +12,7 @@ def create_app():
     # Load configuration
     app.config.from_object(Config)
 
-    # ADD THIS LINE: Disable ASCII encoding to display Hindi/Marathi natively
+    # Disable ASCII encoding to display Hindi/Marathi natively
     app.json.ensure_ascii = False 
 
     # Initialize shared extensions
@@ -22,9 +23,10 @@ def create_app():
     # Register shared API blueprint
     app.register_blueprint(api_bp)
     
-    # Register AI blueprint
-    # Using /api/ai matches your M1 exact API requirements
+    # Register M1 AI blueprint
     app.register_blueprint(ai_bp, url_prefix='/api/ai')
-    
+
+    # Register token & queue blueprint (prefix is set on tokens_bp)
+    app.register_blueprint(tokens_bp)
 
     return app
