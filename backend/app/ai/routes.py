@@ -3,6 +3,9 @@ import os
 from flask import Blueprint, request, jsonify
 from google import genai
 
+# 1. IMPORT YOUR NEW PROMPT RULES HERE
+from app.ai.prompts import get_system_prompt
+
 # Initialize Blueprint and Gemini Client
 ai_bp = Blueprint("ai", __name__)
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
@@ -15,18 +18,8 @@ def understand_intent():
     payload = request.get_json() or {}
     message = payload.get("message", "")
     
-    prompt = f"""
-    You are a healthcare intent extraction AI. The user may speak in Marathi, Hindi, or English.
-    
-    RULES:
-    1. Identify intent (CHECK_BED_AVAILABILITY, BOOK_APPOINTMENT, CHECK_DOCTOR_AVAILABILITY, CANCEL_APPOINTMENT, UNKNOWN).
-    2. Extract entities (doctor_name, bed_type, date, time).
-    3. CRITICAL: Translate all entities to English (e.g., 'हृदयरोगतज्ज्ञ' becomes 'CARDIOLOGY').
-    
-    Output ONLY valid JSON with keys: 'intent', 'entities', 'success' (boolean).
-    
-    User Message: "{message}"
-    """
+    # 2. USE THE FUNCTION INSTEAD OF HARDCODED TEXT
+    prompt = get_system_prompt() + f'\n\nPatient Message: "{message}"'
     
     try:
         response = client.models.generate_content(
