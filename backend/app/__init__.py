@@ -1,34 +1,38 @@
 from typing import Optional, Dict, Any
-import os
-from dotenv import load_dotenv
 from flask import Flask
-from app.extensions import db
-from app.doctors.routes import doctors_bp
 
-load_dotenv()
+from app.config import Config
+from app.extensions import db, migrate, jwt
+from app.api import api_bp
+from app.ai.routes import ai_bp
+from app.doctors.routes import doctors_bp
 
 
 def create_app(config_override: Optional[Dict[str, Any]] = None) -> Flask:
-    """Application factory for the Flask backend."""
     app = Flask(__name__)
 
-    database_url = os.getenv("DATABASE_URL", "sqlite:///sih_healthcare.db")
-    if database_url == "REPLACE_ME" or not database_url:
-        database_url = "sqlite:///sih_healthcare.db"
-    elif database_url.startswith("postgres://"):
-        database_url = database_url.replace("postgres://", "postgresql://", 1)
+    # Load configuration
+    app.config.from_object(Config)
 
-    app.config["SQLALCHEMY_DATABASE_URI"] = database_url
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
+    # Allow configuration override (e.g. for testing)
     if config_override:
         app.config.update(config_override)
 
-    # Initialize extensions
+    # Disable ASCII encoding to display Hindi/Marathi natively
+    app.json.ensure_ascii = False
+
+    # Initialize shared extensions
     db.init_app(app)
+    migrate.init_app(app, db)
+    jwt.init_app(app)
 
+    # Register shared API blueprint
+    app.register_blueprint(api_bp)
 
-    # Register Blueprints
-    app.register_blueprint(doctors_bp)
+    # Register AI blueprint
+    app.register_blueprint(ai_bp, url_prefix="/api/ai")
+
+    # Register Member 3 Doctors blueprint
+    app.register_blueprint(doctors_bp, url_prefix="/api/v1/doctors")
 
     return app
