@@ -4,7 +4,6 @@ from app.config import Config
 from app.extensions import db, migrate, jwt
 from app.api import api_bp
 from app.ai.routes import ai_bp  # <-- 1. Import your AI blueprint
-from app.orchestrator.routes import orchestrator_bp  # <-- Add Orchestrator import
 
 def create_app():
     app = Flask(__name__)
@@ -27,7 +26,5 @@ def create_app():
     # Using /api/ai matches your M1 exact API requirements
     app.register_blueprint(ai_bp, url_prefix='/api/ai')
     
-    # Register Orchestrator blueprint (Handles the /api/chat route)
-    app.register_blueprint(orchestrator_bp)  # <-- Register Orchestrator
 
     return app
