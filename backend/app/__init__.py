@@ -1,3 +1,4 @@
+from typing import Optional, Dict, Any
 import os
 from dotenv import load_dotenv
 from flask import Flask
@@ -7,7 +8,7 @@ from app.doctors.routes import doctors_bp
 load_dotenv()
 
 
-def create_app(config_override: dict = None) -> Flask:
+def create_app(config_override: Optional[Dict[str, Any]] = None) -> Flask:
     """Application factory for the Flask backend."""
     app = Flask(__name__)
 

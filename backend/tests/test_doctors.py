@@ -2,15 +2,11 @@ import unittest
 from datetime import date, time
 from app import create_app
 from app.extensions import db
-from app.doctors.models import Doctor, DoctorSchedule, DoctorLeave
 from app.doctors.service import (
     create_doctor,
     create_doctor_schedule,
     create_doctor_leave,
     get_doctors,
-    get_doctor_by_id,
-    get_doctor_schedule,
-    calculate_availability,
 )
 
 
