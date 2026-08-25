@@ -5,19 +5,14 @@ from app.config import Config
 from app.extensions import db, migrate, jwt
 from app.api import api_bp
 from app.ai.routes import ai_bp
-
 from app.doctors.routes import doctors_bp
-
 from app.tokens.routes import tokens_bp
-
-
 
 def create_app(config_override: Optional[Dict[str, Any]] = None) -> Flask:
     app = Flask(__name__)
 
     # Load configuration
     app.config.from_object(Config)
-
 
     # Set default SQLAlchemy engine options if not configured
     if "SQLALCHEMY_ENGINE_OPTIONS" not in app.config or not app.config["SQLALCHEMY_ENGINE_OPTIONS"]:
@@ -33,10 +28,6 @@ def create_app(config_override: Optional[Dict[str, Any]] = None) -> Flask:
     # Disable ASCII encoding to display Hindi/Marathi natively
     app.json.ensure_ascii = False
 
-    # Disable ASCII encoding to display Hindi/Marathi natively
-    app.json.ensure_ascii = False 
-
-
     # Initialize shared extensions
     db.init_app(app)
     migrate.init_app(app, db)
@@ -45,17 +36,11 @@ def create_app(config_override: Optional[Dict[str, Any]] = None) -> Flask:
     # Register shared API blueprint
     app.register_blueprint(api_bp)
 
-
-    # Register AI blueprint
-    app.register_blueprint(ai_bp, url_prefix="/api/ai")
+    # Register M1 AI blueprint (Updated to v1 prefix)
+    app.register_blueprint(ai_bp, url_prefix='/api/v1/ai')
 
     # Register Member 3 Doctors blueprint
     app.register_blueprint(doctors_bp, url_prefix="/api/v1/doctors")
-
-    
-    # Register M1 AI blueprint
-    app.register_blueprint(ai_bp, url_prefix='/api/ai')
-
 
     # Register token & queue blueprint (prefix is set on tokens_bp)
     app.register_blueprint(tokens_bp)
