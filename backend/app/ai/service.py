@@ -26,6 +26,9 @@ def process_ai_request(user_message: str) -> dict:
         )
 
         
+        if not response or not response.text:
+            return build_error_response("Model returned an empty response or content was blocked by safety filters.")
+            
         clean_json = response.text.replace('```json', '').replace('```', '').strip()
         return json.loads(clean_json)
         

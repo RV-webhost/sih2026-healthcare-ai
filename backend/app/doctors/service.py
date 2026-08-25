@@ -26,21 +26,6 @@ def _normalize_time_str(t_str: Any) -> str:
     return str(t_str).strip()
 
 
-def _coerce_uuid(val: Any) -> Optional[uuid.UUID]:
-    """Helper to coerce a string or UUID into a valid UUID object."""
-    if val is None:
-        return None
-    if isinstance(val, uuid.UUID):
-        return val
-    try:
-        return uuid.UUID(str(val).strip())
-    except (ValueError, AttributeError):
-        try:
-            return uuid.uuid5(uuid.NAMESPACE_DNS, str(val).strip())
-        except Exception:
-            return None
-
-
 def get_doctors(department: Optional[str] = None, specialization: Optional[str] = None) -> List[Doctor]:
     """Query doctors using Flask-SQLAlchemy db.session, optionally filtered by department or specialization."""
     query = Doctor.query
@@ -63,20 +48,16 @@ def get_doctor_by_id(doctor_id: str) -> Optional[Doctor]:
     """Fetch doctor details by doctor_id string/UUID."""
     if not doctor_id:
         return None
-    doc_uuid = _coerce_uuid(doctor_id)
-    if not doc_uuid:
-        return None
-    return Doctor.query.filter(Doctor.id == doc_uuid).first()
+    return Doctor.query.filter(
+        (Doctor.doctor_id == str(doctor_id)) if hasattr(Doctor, "doctor_id") else (Doctor.id == str(doctor_id))
+    ).first()
 
 
 def get_doctor_schedule(doctor_id: str) -> List[Dict[str, Any]]:
     """Fetch all regular schedules for the doctor with formatted times (HH:MM)."""
     if not doctor_id:
         return []
-    doc_uuid = _coerce_uuid(doctor_id)
-    if not doc_uuid:
-        return []
-    schedules = DoctorSchedule.query.filter(DoctorSchedule.doctor_id == doc_uuid).all()
+    schedules = DoctorSchedule.query.filter(DoctorSchedule.doctor_id == str(doctor_id)).all()
     return [format_doctor_schedule_out(s) for s in schedules]
 
 
@@ -99,8 +80,9 @@ def calculate_availability(
         )
 
     # Step 1: Validate doctor exists and is active/available
-    doc_uuid = _coerce_uuid(doctor_id)
-    doctor = Doctor.query.filter(Doctor.id == doc_uuid).first() if doc_uuid else None
+    doctor = Doctor.query.filter(
+        (Doctor.doctor_id == str(doctor_id)) if hasattr(Doctor, "doctor_id") else (Doctor.id == str(doctor_id))
+    ).first()
     if not doctor:
         return standard_response(
             success=False,
@@ -119,16 +101,18 @@ def calculate_availability(
             error_code="DOCTOR_INACTIVE",
         )
 
+    doc_key = str(doctor.doctor_id) if (hasattr(doctor, "doctor_id") and doctor.doctor_id) else str(doctor.id)
+
     # Step 2: Check doctor_leaves for check_date
     leave = DoctorLeave.query.filter(
-        DoctorLeave.doctor_id == doctor.id,
+        DoctorLeave.doctor_id == str(doctor_id),
         DoctorLeave.leave_date == check_date
     ).first()
 
     if leave:
         reason_msg = f"Doctor is on leave: {leave.reason}" if leave.reason else "Doctor is on leave"
         avail_data = format_doctor_availability_out(
-            doctor_id=str(doctor.doctor_id),
+            doctor_id=doc_key,
             check_date=check_date,
             available=False,
             slots=[]
@@ -143,13 +127,13 @@ def calculate_availability(
     # Step 3: Check regular schedule for the day of the week
     day_name = check_date.strftime("%A")
     schedules = DoctorSchedule.query.filter(
-        DoctorSchedule.doctor_id == doctor.id,
+        DoctorSchedule.doctor_id == str(doctor_id),
         DoctorSchedule.day_of_week.ilike(day_name)
     ).all()
 
     if not schedules:
         avail_data = format_doctor_availability_out(
-            doctor_id=str(doctor.doctor_id),
+            doctor_id=doc_key,
             check_date=check_date,
             available=False,
             slots=[]
@@ -168,7 +152,7 @@ def calculate_availability(
     else:
         try:
             date_str = check_date.strftime("%Y-%m-%d") if isinstance(check_date, (date, datetime)) else str(check_date)
-            m2_url = f"http://127.0.0.1:5000/api/v1/appointments/doctor/{doctor_id}?date={date_str}"
+            m2_url = f"http://127.0.0.1:5000/api/v1/appointments/doctor/{str(doctor_id)}?date={date_str}"
             response = requests.get(m2_url, timeout=5)
             if response.status_code == 200:
                 resp_json = response.json()
@@ -228,7 +212,7 @@ def calculate_availability(
 
     if slots and not overall_available:
         avail_data = format_doctor_availability_out(
-            doctor_id=str(doctor.doctor_id),
+            doctor_id=doc_key,
             check_date=check_date,
             available=False,
             slots=slots
@@ -241,7 +225,7 @@ def calculate_availability(
         )
 
     avail_data = format_doctor_availability_out(
-        doctor_id=str(doctor.doctor_id),
+        doctor_id=doc_key,
         check_date=check_date,
         available=overall_available,
         slots=slots
@@ -259,9 +243,9 @@ def create_doctor(doctor_data: Dict[str, Any]) -> Doctor:
     """Helper to create a new doctor entry using Flask-SQLAlchemy db.session."""
     data = dict(doctor_data)
     if "doctor_id" in data and "id" not in data:
-        data["id"] = data.pop("doctor_id")
-    if "id" in data and data["id"] is not None:
-        data["id"] = _coerce_uuid(data["id"])
+        data["id"] = str(data.pop("doctor_id"))
+    elif "id" in data and data["id"] is not None:
+        data["id"] = str(data["id"])
     if "is_available" in data and "status" not in data:
         data["status"] = "ACTIVE" if data.pop("is_available") else "INACTIVE"
     if "specialization" not in data:
@@ -277,9 +261,9 @@ def create_doctor_schedule(schedule_data: Dict[str, Any]) -> DoctorSchedule:
     """Helper to create a doctor schedule entry using Flask-SQLAlchemy db.session."""
     data = dict(schedule_data)
     if "id" in data and data["id"] is not None:
-        data["id"] = _coerce_uuid(data["id"])
+        data["id"] = str(data["id"])
     if "doctor_id" in data and data["doctor_id"] is not None:
-        data["doctor_id"] = _coerce_uuid(data["doctor_id"])
+        data["doctor_id"] = str(data["doctor_id"])
     schedule = DoctorSchedule(**data)
     db.session.add(schedule)
     db.session.commit()
@@ -290,9 +274,9 @@ def create_doctor_leave(leave_data: Dict[str, Any]) -> DoctorLeave:
     """Helper to create a doctor leave entry using Flask-SQLAlchemy db.session."""
     data = dict(leave_data)
     if "id" in data and data["id"] is not None:
-        data["id"] = _coerce_uuid(data["id"])
+        data["id"] = str(data["id"])
     if "doctor_id" in data and data["doctor_id"] is not None:
-        data["doctor_id"] = _coerce_uuid(data["doctor_id"])
+        data["doctor_id"] = str(data["doctor_id"])
     leave = DoctorLeave(**data)
     db.session.add(leave)
     db.session.commit()

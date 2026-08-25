@@ -1,0 +1,24 @@
+{
+  "include": [
+    "."
+  ],
+  "extraPaths": [
+    ".",
+    "app",
+    "${workspaceFolder}",
+    "${workspaceFolder}/app"
+  ],
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "extraPaths": [
+        "app",
+        "."
+      ]
+    }
+  ],
+  "venvPath": ".",
+  "venv": ".venv",
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": false
+}
