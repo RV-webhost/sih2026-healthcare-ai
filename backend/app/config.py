@@ -13,4 +13,13 @@ class Config:
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+<<<<<<< HEAD
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-key")
+=======
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+    }
+
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+>>>>>>> origin/main

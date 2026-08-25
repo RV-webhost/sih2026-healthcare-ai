@@ -1,0 +1,12 @@
+[
+  {"test_message": "Book an appointment with Dr. Sharma tomorrow."},
+  {"test_message": "Are there any ICU beds available right now?"},
+  {"test_message": "Cancel my cardiology appointment for next Monday."},
+  {"test_message": "Is Dr. Patel free on Friday afternoon?"},
+  {"test_message": "I have a severe headache, who should I see?"},
+  {"test_message": "I need a pediatrician on August 30th."},
+  {"test_message": "Does Dr. Gupta work on weekends?"},
+  {"test_message": "Can you order me a pizza with extra cheese?"},
+  {"test_message": "Check if Dr. Sharma has any open slots today."},
+  {"test_message": "Do you have a general ward bed for my grandfather?"}
+]
