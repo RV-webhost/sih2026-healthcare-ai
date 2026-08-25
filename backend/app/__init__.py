@@ -14,7 +14,7 @@ from app.ai.routes import ai_bp
 from app.doctors.routes import doctors_bp
 from app.tokens.routes import tokens_bp
 
-def create_app(config_override: Optional[Dict[str, Any]] = None) -> Flask:
+def create_app(config_override=None) -> Flask:
 
     app = Flask(__name__)
 
@@ -23,7 +23,10 @@ def create_app(config_override: Optional[Dict[str, Any]] = None) -> Flask:
 
     # Allow configuration override (e.g., for testing)
     if config_override:
-        app.config.update(config_override)
+        if isinstance(config_override, dict):
+            app.config.from_mapping(config_override)
+        else:
+            app.config.from_object(config_override)
 
     # Set default SQLAlchemy engine options if not configured
     if "SQLALCHEMY_ENGINE_OPTIONS" not in app.config or not app.config["SQLALCHEMY_ENGINE_OPTIONS"]:
