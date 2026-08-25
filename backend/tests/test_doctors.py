@@ -103,7 +103,7 @@ class TestDoctorAvailability(unittest.TestCase):
             "reason": "Personal Leave"
         })
         res = self.client.get(f"/api/v1/doctors/{self.doctor.doctor_id}/availability?date=2026-08-25")
-        self.assertEqual(res.status_code, 400)
+        self.assertEqual(res.status_code, 200)
         data = res.get_json()
         self.assertFalse(data["data"]["available"])
         self.assertEqual(data["error_code"], "DOCTOR_ON_LEAVE")
@@ -157,6 +157,20 @@ class TestDoctorAvailability(unittest.TestCase):
         self.assertTrue(slots[0]["available"])
         self.assertEqual(slots[3]["time"], "11:30")
         self.assertTrue(slots[3]["available"])
+
+    def test_get_doctor_availability_missing_date(self):
+        res = self.client.get(f"/api/v1/doctors/{self.doctor.doctor_id}/availability")
+        self.assertEqual(res.status_code, 400)
+        data = res.get_json()
+        self.assertFalse(data["success"])
+        self.assertEqual(data["error_code"], "INVALID_DATE")
+
+    def test_get_doctor_availability_invalid_date(self):
+        res = self.client.get(f"/api/v1/doctors/{self.doctor.doctor_id}/availability?date=invalid-date")
+        self.assertEqual(res.status_code, 400)
+        data = res.get_json()
+        self.assertFalse(data["success"])
+        self.assertEqual(data["error_code"], "INVALID_DATE")
 
 
 if __name__ == "__main__":

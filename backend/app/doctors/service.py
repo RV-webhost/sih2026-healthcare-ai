@@ -2,6 +2,8 @@ import uuid
 import requests
 from datetime import date, time, datetime
 from typing import List, Optional, Dict, Any
+from functools import wraps
+from sqlalchemy.exc import DBAPIError, OperationalError, SQLAlchemyError
 from app.extensions import db
 from app.doctors.models import Doctor, DoctorSchedule, DoctorLeave
 from app.doctors.schemas import (
@@ -11,6 +13,21 @@ from app.doctors.schemas import (
     format_doctor_availability_out,
     format_slot_out,
 )
+
+
+def with_db_retry(fn):
+    """Executes a function and triggers db.session.rollback() on DB disconnect/error before retrying."""
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except (OperationalError, DBAPIError, SQLAlchemyError):
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            return fn(*args, **kwargs)
+    return wrapper
 
 
 def _normalize_time_str(t_str: Any) -> str:
@@ -26,6 +43,7 @@ def _normalize_time_str(t_str: Any) -> str:
     return str(t_str).strip()
 
 
+@with_db_retry
 def get_doctors(department: Optional[str] = None, specialization: Optional[str] = None) -> List[Doctor]:
     """Query doctors using Flask-SQLAlchemy db.session, optionally filtered by department or specialization."""
     query = Doctor.query
@@ -44,6 +62,7 @@ def get_doctors(department: Optional[str] = None, specialization: Optional[str] 
     return query.all()
 
 
+@with_db_retry
 def get_doctor_by_id(doctor_id: str) -> Optional[Doctor]:
     """Fetch doctor details by doctor_id string/UUID."""
     if not doctor_id:
@@ -53,6 +72,7 @@ def get_doctor_by_id(doctor_id: str) -> Optional[Doctor]:
     ).first()
 
 
+@with_db_retry
 def get_doctor_schedule(doctor_id: str) -> List[Dict[str, Any]]:
     """Fetch all regular schedules for the doctor with formatted times (HH:MM)."""
     if not doctor_id:
@@ -61,6 +81,7 @@ def get_doctor_schedule(doctor_id: str) -> List[Dict[str, Any]]:
     return [format_doctor_schedule_out(s) for s in schedules]
 
 
+@with_db_retry
 def calculate_availability(
     doctor_id: str,
     check_date: date,
@@ -101,8 +122,6 @@ def calculate_availability(
             error_code="DOCTOR_INACTIVE",
         )
 
-    doc_key = str(doctor.doctor_id) if (hasattr(doctor, "doctor_id") and doctor.doctor_id) else str(doctor.id)
-
     # Step 2: Check doctor_leaves for check_date
     leave = DoctorLeave.query.filter(
         DoctorLeave.doctor_id == str(doctor_id),
@@ -112,7 +131,7 @@ def calculate_availability(
     if leave:
         reason_msg = f"Doctor is on leave: {leave.reason}" if leave.reason else "Doctor is on leave"
         avail_data = format_doctor_availability_out(
-            doctor_id=doc_key,
+            doctor_id=str(doctor_id),
             check_date=check_date,
             available=False,
             slots=[]
@@ -133,7 +152,7 @@ def calculate_availability(
 
     if not schedules:
         avail_data = format_doctor_availability_out(
-            doctor_id=doc_key,
+            doctor_id=str(doctor_id),
             check_date=check_date,
             available=False,
             slots=[]
@@ -153,7 +172,7 @@ def calculate_availability(
         try:
             date_str = check_date.strftime("%Y-%m-%d") if isinstance(check_date, (date, datetime)) else str(check_date)
             m2_url = f"http://127.0.0.1:5000/api/v1/appointments/doctor/{str(doctor_id)}?date={date_str}"
-            response = requests.get(m2_url, timeout=5)
+            response = requests.get(m2_url, timeout=2)
             if response.status_code == 200:
                 resp_json = response.json()
                 raw_items = []
@@ -212,7 +231,7 @@ def calculate_availability(
 
     if slots and not overall_available:
         avail_data = format_doctor_availability_out(
-            doctor_id=doc_key,
+            doctor_id=str(doctor_id),
             check_date=check_date,
             available=False,
             slots=slots
@@ -225,7 +244,7 @@ def calculate_availability(
         )
 
     avail_data = format_doctor_availability_out(
-        doctor_id=doc_key,
+        doctor_id=str(doctor_id),
         check_date=check_date,
         available=overall_available,
         slots=slots
@@ -239,6 +258,7 @@ def calculate_availability(
     )
 
 
+@with_db_retry
 def create_doctor(doctor_data: Dict[str, Any]) -> Doctor:
     """Helper to create a new doctor entry using Flask-SQLAlchemy db.session."""
     data = dict(doctor_data)
@@ -257,6 +277,7 @@ def create_doctor(doctor_data: Dict[str, Any]) -> Doctor:
     return doctor
 
 
+@with_db_retry
 def create_doctor_schedule(schedule_data: Dict[str, Any]) -> DoctorSchedule:
     """Helper to create a doctor schedule entry using Flask-SQLAlchemy db.session."""
     data = dict(schedule_data)
@@ -270,6 +291,7 @@ def create_doctor_schedule(schedule_data: Dict[str, Any]) -> DoctorSchedule:
     return schedule
 
 
+@with_db_retry
 def create_doctor_leave(leave_data: Dict[str, Any]) -> DoctorLeave:
     """Helper to create a doctor leave entry using Flask-SQLAlchemy db.session."""
     data = dict(leave_data)

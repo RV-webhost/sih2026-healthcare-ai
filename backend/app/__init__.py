@@ -14,6 +14,13 @@ def create_app(config_override: Optional[Dict[str, Any]] = None) -> Flask:
     # Load configuration
     app.config.from_object(Config)
 
+    # Set default SQLAlchemy engine options if not configured
+    if "SQLALCHEMY_ENGINE_OPTIONS" not in app.config or not app.config["SQLALCHEMY_ENGINE_OPTIONS"]:
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+        }
+
     # Allow configuration override (e.g. for testing)
     if config_override:
         app.config.update(config_override)

@@ -64,15 +64,23 @@ def get_doctors():
               nullable: true
               example: null
     """
-    department = request.args.get("department") or request.args.get("specialization")
-    doctors = DoctorService.get_doctors(department=department)
-    doctors_data = [format_doctor_out(doc) for doc in doctors]
+    try:
+        department = request.args.get("department") or request.args.get("specialization")
+        doctors = DoctorService.get_doctors(department=department)
+        doctors_data = [format_doctor_out(doc) for doc in doctors]
 
-    return jsonify(standard_response(
-        success=True,
-        data=doctors_data,
-        message="Active doctors fetched successfully"
-    )), 200
+        return jsonify(standard_response(
+            success=True,
+            data=doctors_data,
+            message="Active doctors fetched successfully"
+        )), 200
+    except Exception as e:
+        return jsonify(standard_response(
+            success=False,
+            data=[],
+            message=f"Failed to fetch active doctors: {str(e)}",
+            error_code="INTERNAL_ERROR"
+        )), 500
 
 
 @doctors_bp.route("/<doctor_id>", methods=["GET"])
@@ -139,20 +147,28 @@ def get_doctor_by_id(doctor_id: str):
               type: string
               example: "DOCTOR_NOT_FOUND"
     """
-    doctor = DoctorService.get_doctor_by_id(doctor_id)
-    if not doctor:
+    try:
+        doctor = DoctorService.get_doctor_by_id(doctor_id)
+        if not doctor:
+            return jsonify(standard_response(
+                success=False,
+                data=None,
+                message="Doctor not found",
+                error_code="DOCTOR_NOT_FOUND"
+            )), 404
+
+        return jsonify(standard_response(
+            success=True,
+            data=format_doctor_out(doctor),
+            message="Doctor details retrieved successfully"
+        )), 200
+    except Exception as e:
         return jsonify(standard_response(
             success=False,
             data=None,
-            message="Doctor not found",
-            error_code="DOCTOR_NOT_FOUND"
-        )), 404
-
-    return jsonify(standard_response(
-        success=True,
-        data=format_doctor_out(doctor),
-        message="Doctor details retrieved successfully"
-    )), 200
+            message=f"Failed to retrieve doctor details: {str(e)}",
+            error_code="INTERNAL_ERROR"
+        )), 500
 
 
 @doctors_bp.route("/<doctor_id>/schedule", methods=["GET"])
@@ -220,21 +236,29 @@ def get_doctor_schedule(doctor_id: str):
               type: string
               example: "DOCTOR_NOT_FOUND"
     """
-    doctor = DoctorService.get_doctor_by_id(doctor_id)
-    if not doctor:
+    try:
+        doctor = DoctorService.get_doctor_by_id(doctor_id)
+        if not doctor:
+            return jsonify(standard_response(
+                success=False,
+                data=[],
+                message="Doctor not found",
+                error_code="DOCTOR_NOT_FOUND"
+            )), 404
+
+        schedules = DoctorService.get_doctor_schedule(doctor_id)
+        return jsonify(standard_response(
+            success=True,
+            data=schedules,
+            message="Doctor schedule retrieved successfully"
+        )), 200
+    except Exception as e:
         return jsonify(standard_response(
             success=False,
             data=[],
-            message="Doctor not found",
-            error_code="DOCTOR_NOT_FOUND"
-        )), 404
-
-    schedules = DoctorService.get_doctor_schedule(doctor_id)
-    return jsonify(standard_response(
-        success=True,
-        data=schedules,
-        message="Doctor schedule retrieved successfully"
-    )), 200
+            message=f"Failed to retrieve doctor schedule: {str(e)}",
+            error_code="INTERNAL_ERROR"
+        )), 500
 
 
 @doctors_bp.route("/<doctor_id>/availability", methods=["GET"])
@@ -298,7 +322,7 @@ def get_doctor_availability(doctor_id: str):
               nullable: true
               example: null
       400:
-        description: Bad request or availability constraint encountered (e.g. INVALID_DATE / INVALID_DATE_FORMAT / INVALID_INPUT, DOCTOR_INACTIVE, DOCTOR_ON_LEAVE, NO_AVAILABLE_SLOTS)
+        description: Missing or invalid date parameter
         schema:
           type: object
           properties:
@@ -308,40 +332,15 @@ def get_doctor_availability(doctor_id: str):
             data:
               type: object
               nullable: true
-              properties:
-                doctor_id:
-                  type: string
-                  example: "doc-test-1"
-                date:
-                  type: string
-                  example: "2026-08-24"
-                available:
-                  type: boolean
-                  example: false
-                slots:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      time:
-                        type: string
-                        example: "09:00"
-                      available:
-                        type: boolean
-                        example: false
+              example: null
             message:
               type: string
-              example: "Doctor is on leave: Personal Leave"
+              example: "Invalid date format. Expected YYYY-MM-DD"
             error_code:
               type: string
               enum:
                 - INVALID_DATE
-                - INVALID_DATE_FORMAT
-                - INVALID_INPUT
-                - DOCTOR_INACTIVE
-                - DOCTOR_ON_LEAVE
-                - NO_AVAILABLE_SLOTS
-              example: "DOCTOR_ON_LEAVE"
+              example: "INVALID_DATE"
       404:
         description: Doctor not found
         schema:
@@ -367,36 +366,36 @@ def get_doctor_availability(doctor_id: str):
             success=False,
             data=None,
             message="Query parameter 'date' (YYYY-MM-DD) is required",
-            error_code="INVALID_INPUT"
+            error_code="INVALID_DATE"
         )), 400
 
     try:
         check_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-    except ValueError:
+    except (ValueError, TypeError):
         return jsonify(standard_response(
             success=False,
             data=None,
             message="Invalid date format. Expected YYYY-MM-DD",
-            error_code="INVALID_DATE_FORMAT"
+            error_code="INVALID_DATE"
         )), 400
 
-    result = DoctorService.calculate_availability(
-        doctor_id=doctor_id,
-        check_date=check_date
-    )
+    try:
+        result = DoctorService.calculate_availability(
+            doctor_id=doctor_id,
+            check_date=check_date
+        )
 
-    error_code = result.get("error_code")
+        error_code = result.get("error_code")
 
-    if not result.get("success"):
         if error_code == "DOCTOR_NOT_FOUND":
             return jsonify(result), 404
-        elif error_code in ["DOCTOR_INACTIVE", "DOCTOR_ON_LEAVE", "NO_AVAILABLE_SLOTS"]:
-            return jsonify(result), 400
-        else:
-            return jsonify(result), 400
 
-    if error_code in ["DOCTOR_INACTIVE", "DOCTOR_ON_LEAVE", "NO_AVAILABLE_SLOTS"]:
-        return jsonify(result), 400
-
-    return jsonify(result), 200
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify(standard_response(
+            success=False,
+            data=None,
+            message=f"Failed to calculate doctor availability: {str(e)}",
+            error_code="INTERNAL_ERROR"
+        )), 500
 
