@@ -2,21 +2,12 @@ import uuid
 from datetime import datetime, timezone
 from app.extensions import db
 
-# Reference placeholder tables in metadata for foreign keys if other team members' models are loaded separately
-if "patients" not in db.metadata.tables:
-    db.Table("patients", db.metadata, db.Column("id", db.Uuid, primary_key=True), extend_existing=True)
-if "doctors" not in db.metadata.tables:
-    db.Table("doctors", db.metadata, db.Column("id", db.Uuid, primary_key=True), extend_existing=True)
-
-
-
-
 class Appointment(db.Model):
     __tablename__ = "appointments"
 
     id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
-    patient_id = db.Column(db.Uuid, db.ForeignKey("patients.id"), nullable=False)
-    doctor_id = db.Column(db.Uuid, db.ForeignKey("doctors.id"), nullable=False)
+    patient_id = db.Column(db.Uuid, nullable=False)
+    doctor_id = db.Column(db.Uuid, nullable=False)
     appointment_date = db.Column(db.Date, nullable=False)
     appointment_time = db.Column(db.Time, nullable=False)
     status = db.Column(db.String(50), nullable=False, default="CONFIRMED")
@@ -103,7 +94,7 @@ class BedAllocation(db.Model):
 
     id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
     bed_id = db.Column(db.Uuid, db.ForeignKey("beds.id"), nullable=False)
-    patient_id = db.Column(db.Uuid, db.ForeignKey("patients.id"), nullable=False)
+    patient_id = db.Column(db.Uuid, nullable=False)
     allocated_at = db.Column(
         db.DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
