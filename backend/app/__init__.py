@@ -4,23 +4,26 @@ from flask import Flask
 from app.config import Config
 from app.extensions import db, migrate, jwt
 from app.api import api_bp
-<<<<<<< HEAD
+
+# Member 2 Blueprints
 from app.appointments import appointments_bp
 from app.beds import beds_bp
 
-
-def create_app(config_object=Config):
-=======
+# Other Members Blueprints
 from app.ai.routes import ai_bp
 from app.doctors.routes import doctors_bp
 from app.tokens.routes import tokens_bp
 
 def create_app(config_override: Optional[Dict[str, Any]] = None) -> Flask:
->>>>>>> origin/main
+
     app = Flask(__name__)
 
-    # Load configuration
-    app.config.from_object(config_object)
+    # Load default configuration
+    app.config.from_object(Config)
+
+    # Allow configuration override (e.g., for testing)
+    if config_override:
+        app.config.update(config_override)
 
     # Set default SQLAlchemy engine options if not configured
     if "SQLALCHEMY_ENGINE_OPTIONS" not in app.config or not app.config["SQLALCHEMY_ENGINE_OPTIONS"]:
@@ -28,10 +31,6 @@ def create_app(config_override: Optional[Dict[str, Any]] = None) -> Flask:
             "pool_pre_ping": True,
             "pool_recycle": 300,
         }
-
-    # Allow configuration override (e.g. for testing)
-    if config_override:
-        app.config.update(config_override)
 
     # Disable ASCII encoding to display Hindi/Marathi natively
     app.json.ensure_ascii = False
@@ -41,18 +40,16 @@ def create_app(config_override: Optional[Dict[str, Any]] = None) -> Flask:
     migrate.init_app(app, db)
     jwt.init_app(app)
 
-    # Register shared API blueprint and module blueprints
+    # Register shared API blueprint
     app.register_blueprint(api_bp)
-    app.register_blueprint(appointments_bp, url_prefix="/api/appointments")
-    app.register_blueprint(beds_bp, url_prefix="/api/beds")
+    
+    # Register Member 2 module blueprints (Ensuring v1 prefix convention)
+    app.register_blueprint(appointments_bp, url_prefix="/api/v1/appointments")
+    app.register_blueprint(beds_bp, url_prefix="/api/v1/beds")
 
-    # Register M1 AI blueprint (Updated to v1 prefix)
+    # Register other module blueprints
     app.register_blueprint(ai_bp, url_prefix='/api/v1/ai')
-
-    # Register Member 3 Doctors blueprint
     app.register_blueprint(doctors_bp, url_prefix="/api/v1/doctors")
-
-    # Register token & queue blueprint (prefix is set on tokens_bp)
     app.register_blueprint(tokens_bp)
 
     return app
