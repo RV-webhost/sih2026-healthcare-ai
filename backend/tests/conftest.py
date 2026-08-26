@@ -21,11 +21,7 @@ class MockPatient(db.Model):
     full_name = db.Column(db.String(100), default="Test Patient")
 
 
-class MockDoctor(db.Model):
-    __tablename__ = "doctors"
-    __table_args__ = {"extend_existing": True}
-    id = db.Column(db.Uuid, primary_key=True, default=uuid.uuid4)
-    name = db.Column(db.String(100), default="Test Doctor")
+
 
 
 @pytest.fixture(scope="session")

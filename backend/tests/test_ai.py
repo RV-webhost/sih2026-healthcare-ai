@@ -51,9 +51,9 @@ def test_system_prompt_generation():
 # --- 2. Route & API Endpoint Tests ---
 
 def test_understand_endpoint_validation_error(client):
-    """Test POST /api/ai/understand returns 400 on empty payload."""
+    """Test POST /api/v1/ai/understand returns 400 on empty payload."""
     response = client.post(
-        '/api/ai/understand',
+        '/api/v1/ai/understand',
         json={"message": ""}
     )
     assert response.status_code == 400
@@ -63,7 +63,7 @@ def test_understand_endpoint_validation_error(client):
 
 
 def test_understand_endpoint_success_contract(client):
-    """Test POST /api/ai/understand returns valid schema contract with mocked LLM."""
+    """Test POST /api/v1/ai/understand returns valid schema contract with mocked LLM."""
     mock_ai_output = {
         "success": True,
         "intent": "BOOK_APPOINTMENT",
@@ -84,7 +84,7 @@ def test_understand_endpoint_success_contract(client):
     # Mock the LLM service call to test API contract deterministically
     with patch('app.ai.routes.process_ai_request', return_value=mock_ai_output):
         response = client.post(
-            '/api/ai/understand',
+            '/api/v1/ai/understand',
             json={"message": "Book cardiology tomorrow morning"}
         )
 

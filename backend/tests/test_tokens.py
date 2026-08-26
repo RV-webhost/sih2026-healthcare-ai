@@ -32,7 +32,7 @@ def test_generate_token_success(mock_calc, mock_create, client):
     mock_create.return_value = mock_token
     mock_calc.return_value = (4, 40) # 4 people ahead, 40 mins wait
 
-    response = client.post('/api/tokens', json={
+    response = client.post('/api/v1/tokens', json={
         "patient_id": "P1023",
         "appointment_id": "APT10045"
     })
@@ -44,7 +44,7 @@ def test_generate_token_success(mock_calc, mock_create, client):
     assert data["data"]["estimated_wait_minutes"] == 40
 
 def test_generate_token_missing_data(client):
-    response = client.post('/api/tokens', json={"patient_id": "P1023"})
+    response = client.post('/api/v1/tokens', json={"patient_id": "P1023"})
     assert response.status_code == 400
     data = response.get_json()
     assert data["success"] is False
@@ -66,7 +66,7 @@ def test_call_patient(mock_calc, mock_transition, client):
     mock_transition.return_value = mock_token
     mock_calc.return_value = (0, 0)
     
-    response = client.patch('/api/tokens/T5001/call')
+    response = client.patch('/api/v1/tokens/T5001/call')
     
     assert response.status_code == 200
     data = response.get_json()
@@ -74,9 +74,9 @@ def test_call_patient(mock_calc, mock_transition, client):
     assert data["data"]["status"] == "CALLED"
 
 def test_get_queue_missing_params(client):
-    response = client.get('/api/tokens/queue')
+    response = client.get('/api/v1/tokens/queue')
     assert response.status_code == 400
 
 def test_get_current_token_missing_params(client):
-    response = client.get('/api/tokens/current')
+    response = client.get('/api/v1/tokens/current')
     assert response.status_code == 400
