@@ -35,21 +35,50 @@ def _m3_get_doctor_availability(specialization: str, date: str) -> dict:
         }
 
 
-def _m2_create_appointment(doctor_id: str, patient_id: str, date: str, time: str) -> dict:
-    """Mocked call to app.appointments.service.create_appointment(...)."""
-    try:
-        from app.appointments.service import create_appointment
+def _m2_create_appointment(
+        doctor_id: str,
+        patient_id: str,
+        date: str,
+        time: str
+    ) -> dict | None:
+        """Call the real M2 appointment service and normalize its tuple response."""
+        try:
+            from datetime import datetime
 
-        return create_appointment(doctor_id, patient_id, date, time)
-    except (ImportError, AttributeError):
-        return {
-            "appointment_id": "APT-1001",
-            "doctor_id": doctor_id,
-            "patient_id": patient_id,
-            "date": date,
-            "time": time,
-            "status": "CONFIRMED",
-        }
+            from app.appointments.service import create_appointment
+
+            appointment_date = datetime.strptime(date, "%Y-%m-%d").date()
+            appointment_time = datetime.strptime(time, "%H:%M").time()
+
+            appointment, message, error_code = create_appointment(
+                patient_id=patient_id,
+                doctor_id=doctor_id,
+                appointment_date=appointment_date,
+                appointment_time=appointment_time,
+            )
+
+            if error_code or appointment is None:
+                print("\n========== M2 BOOKING ERROR ==========")
+                print("message:", message)
+                print("error_code:", error_code)
+                print("doctor_id:", doctor_id)
+                print("patient_id:", patient_id)
+                print("date:", date)
+                print("time:", time)
+                print("======================================\n")
+                return None
+
+            return {
+                "appointment_id": str(appointment.id),
+                "doctor_id": str(appointment.doctor_id),
+                "patient_id": str(appointment.patient_id),
+                "date": appointment.appointment_date.isoformat(),
+                "time": appointment.appointment_time.strftime("%H:%M"),
+                "status": appointment.status,
+            }
+
+        except (ImportError, AttributeError, TypeError, ValueError):
+            return None
 
 
 def _m4_generate_opd_token(appointment_id: str) -> dict:

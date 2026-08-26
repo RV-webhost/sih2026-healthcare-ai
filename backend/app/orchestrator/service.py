@@ -90,7 +90,13 @@ class OrchestratorService:
                 )
 
         except Exception as e:
-            # Catch any unexpected backend errors to maintain the strict JSON contract
+            import traceback
+
+            print("\n========== M6 ORCHESTRATOR ERROR ==========")
+            print(f"{type(e).__name__}: {e}")
+            traceback.print_exc()
+            print("===========================================\n")
+
             return build_error_response(
                 intent="SYSTEM_ERROR",
                 message="An unexpected error occurred while processing your request.",
