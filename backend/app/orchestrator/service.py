@@ -1,79 +1,86 @@
-def _m6_response(success, intent, message, data=None):
-    return {
-        "success": success,
-        "intent": intent,
-        "data": data or {},
-        "message": message,
-        "next_action": None,
-    }
+from app.ai.service import extract_intent_and_entities # M1: AI Module
+from app.orchestrator.schemas import build_success_response, build_error_response
 
+# Downstream service imports (M2, M3, M4, M5)
+from app.doctors.service import check_doctor_availability # M3
+from app.beds.service import check_bed_availability       # M2
+from app.tokens.service import get_queue_status           # M4
+from app.auth.service import get_patient_profile          # M5
 
-def _call_m3():
-    return "M3 called"
+# Handlers for complex multi-step workflows
+from app.orchestrator.handlers.appointment import AppointmentHandler
 
+class OrchestratorService:
+    @staticmethod
+    def process_request(message: str, user: dict) -> dict:
+        """
+        Receives user message, queries M1 for intent, and routes to correct service.
+        """
+        try:
+            # 1. M1 Understands the request[cite: 1]
+            m1_response = extract_intent_and_entities(message)
+            intent = m1_response.get('intent', 'UNKNOWN')
+            entities = m1_response.get('entities', {})
 
-def _call_m2():
-    return "M2 called"
+            # 2. Decide the Workflow based on Intent[cite: 1]
+            
+            # --- APPOINTMENT WORKFLOWS ---
+            if intent == 'BOOK_APPOINTMENT':
+                return AppointmentHandler.handle_booking(entities, user)
+                
+            elif intent == 'CANCEL_APPOINTMENT':
+                return AppointmentHandler.handle_cancellation(entities, user)
 
+            # --- DOCTOR WORKFLOWS ---
+            elif intent in ['CHECK_DOCTOR_AVAILABILITY', 'FIND_DOCTOR']:
+                result = check_doctor_availability(entities)
+                return build_success_response(
+                    intent=intent,
+                    message="Here is the doctor availability.",
+                    data=result
+                )
 
-def _call_m4():
-    return "M4 called"
+            # --- BED WORKFLOWS ---
+            elif intent in ['CHECK_BED_AVAILABILITY', 'REQUEST_BED']:
+                result = check_bed_availability(entities)
+                return build_success_response(
+                    intent=intent,
+                    message="Here is the current bed availability.",
+                    data=result
+                )
 
+            # --- TOKEN/QUEUE WORKFLOWS ---
+            elif intent in ['CHECK_TOKEN', 'JOIN_QUEUE']:
+                result = get_queue_status(user.get('patient_id'))
+                return build_success_response(
+                    intent=intent,
+                    message="Here is your queue status.",
+                    data=result
+                )
 
-def _route_doctor_lookup(intent):
-    services_called = [_call_m3()]
-    return _m6_response(
-        True,
-        intent,
-        "Routed doctor lookup through M3.",
-        {"services_called": services_called},
-    )
+            # --- PATIENT/AUTH WORKFLOWS ---
+            elif intent == 'PATIENT_PROFILE':
+                result = get_patient_profile(user.get('patient_id'))
+                return build_success_response(
+                    intent=intent,
+                    message="Here is your profile information.",
+                    data=result
+                )
 
+            # --- MISSING / UNKNOWN INTENTS[cite: 1] ---
+            else:
+                return build_error_response(
+                    intent="UNKNOWN",
+                    message="I couldn't understand your request. Please tell me what healthcare service you need.",
+                    error_code="UNRECOGNIZED_INTENT",
+                    next_action="CLARIFY"
+                )
 
-def _route_book_appointment(intent):
-    services_called = [_call_m3(), _call_m2(), _call_m4()]
-    return _m6_response(
-        True,
-        intent,
-        "Routed appointment booking through M3, then M2, then M4.",
-        {"services_called": services_called},
-    )
-
-
-def _route_bed_availability(intent):
-    services_called = [_call_m2()]
-    return _m6_response(
-        True,
-        intent,
-        "Routed bed availability check through M2.",
-        {"services_called": services_called},
-    )
-
-
-def _clarification_response(intent="UNKNOWN"):
-    return _m6_response(
-        True,
-        intent,
-        "I need a bit more information to help. Could you clarify what you need?",
-        {"services_called": []},
-    )
-
-
-def process_request(intent_data):
-    intent = "UNKNOWN"
-    if isinstance(intent_data, dict):
-        raw_intent = intent_data.get("intent", "UNKNOWN")
-        if isinstance(raw_intent, str) and raw_intent.strip():
-            intent = raw_intent.strip().upper()
-
-    match intent:
-        case "FIND_DOCTOR" | "CHECK_DOCTOR_AVAILABILITY":
-            return _route_doctor_lookup(intent)
-        case "BOOK_APPOINTMENT":
-            return _route_book_appointment(intent)
-        case "CHECK_BED_AVAILABILITY":
-            return _route_bed_availability(intent)
-        case "UNKNOWN":
-            return _clarification_response()
-        case _:
-            return _clarification_response()
+        except Exception as e:
+            # Catch any unexpected backend errors to maintain the strict JSON contract
+            return build_error_response(
+                intent="SYSTEM_ERROR",
+                message="An unexpected error occurred while processing your request.",
+                error_code="INTERNAL_SERVER_ERROR",
+                next_action="RETRY"
+            )

@@ -1,19 +1,43 @@
-from flask import Blueprint, jsonify, request
-from marshmallow import ValidationError
+from flask import Blueprint, request, jsonify
+from pydantic import ValidationError
+from app.auth.decorators import get_current_user  # M5 Auth dependency
+from app.orchestrator.schemas import AssistantRequestSchema, build_error_response
+from app.orchestrator.service import OrchestratorService
 
-from app.orchestrator.service import process_request
-from .schemas import AssistantRequestSchema
+orchestrator_bp = Blueprint('orchestrator', __name__)
 
-orchestrator_bp = Blueprint("orchestrator", __name__)
-assistant_request_schema = AssistantRequestSchema()
+@orchestrator_bp.route('/assistant', methods=['POST'])
+@get_current_user
+def assistant_endpoint(current_user):
+    """
+    External API entry point for the AI Assistant[cite: 1].
+    """
+    # 1. Validate incoming JSON using your Pydantic schema
+    if not request.is_json:
+        error_resp = build_error_response(
+            intent="UNKNOWN",
+            message="Request must be JSON.",
+            error_code="INVALID_CONTENT_TYPE",
+            next_action=None
+        )
+        return jsonify(error_resp), 400
 
-
-@orchestrator_bp.post("/assistant")
-def process_assistant_request():
-    payload = request.get_json(silent=True) or {}
     try:
-        validated_data = assistant_request_schema.load(payload)
-    except ValidationError as err:
-        return jsonify({"success": False, "errors": err.messages}), 400
+        request_data = AssistantRequestSchema(**request.json)
+    except ValidationError as e:
+        return jsonify({
+            "success": False,
+            "intent": "UNKNOWN",
+            "message": "Invalid request format.",
+            "error_code": "VALIDATION_ERROR",
+            "errors": e.errors()
+        }), 400
 
-    return jsonify(process_request(validated_data))
+    # 2. Pass the validated message and M5 user context to the orchestrator service[cite: 1]
+    response_data = OrchestratorService.process_request(
+        message=request_data.message, 
+        user=current_user
+    )
+    
+    # 3. Return the final JSON[cite: 1]
+    return jsonify(response_data), 200
