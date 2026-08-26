@@ -1,0 +1,261 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "SIH 2026 - Member 2 (Appointments & Beds)",
+    "description": "Postman test collection for Appointment and Bed Management APIs (Member 2).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:5000",
+      "type": "string"
+    },
+    {
+      "key": "appointment_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "patient_id",
+      "value": "a0000000-0000-0000-0000-000000000001",
+      "type": "string"
+    },
+    {
+      "key": "doctor_id",
+      "value": "b0000000-0000-0000-0000-000000000002",
+      "type": "string"
+    },
+    {
+      "key": "bed_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. System Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "1. Appointments",
+      "item": [
+        {
+          "name": "POST Create Appointment (Success)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data) {",
+                  "    pm.collectionVariables.set('appointment_id', jsonData.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"{{patient_id}}\",\n  \"doctor_id\": \"{{doctor_id}}\",\n  \"date\": \"2026-09-15\",\n  \"time\": \"10:30:00\",\n  \"reason\": \"Routine checkup and consultation\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/appointments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments"]
+            }
+          }
+        },
+        {
+          "name": "POST Create Duplicate Appointment (Expect 409 Conflict)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"c0000000-0000-0000-0000-000000000003\",\n  \"doctor_id\": \"{{doctor_id}}\",\n  \"date\": \"2026-09-15\",\n  \"time\": \"10:30:00\",\n  \"reason\": \"Conflicting booking attempt\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/appointments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments"]
+            }
+          }
+        },
+        {
+          "name": "GET Appointment by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments", "{{appointment_id}}"]
+            }
+          }
+        },
+        {
+          "name": "GET Patient Appointments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/patient/{{patient_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments", "patient", "{{patient_id}}"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Reschedule Appointment",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-09-16\",\n  \"time\": \"11:00:00\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}/reschedule",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments", "{{appointment_id}}", "reschedule"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Cancel Appointment",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/appointments/{{appointment_id}}/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "appointments", "{{appointment_id}}", "cancel"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Beds & Availability",
+      "item": [
+        {
+          "name": "GET Overall Bed Availability",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/beds/availability",
+              "host": ["{{base_url}}"],
+              "path": ["api", "beds", "availability"]
+            }
+          }
+        },
+        {
+          "name": "GET ICU Bed Availability",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/beds/availability?ward=ICU",
+              "host": ["{{base_url}}"],
+              "path": ["api", "beds", "availability"],
+              "query": [
+                {
+                  "key": "ward",
+                  "value": "ICU"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "POST Allocate Bed (ICU)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.success && jsonData.data && jsonData.data.bed) {",
+                  "    pm.collectionVariables.set('bed_id', jsonData.data.bed.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"{{patient_id}}\",\n  \"ward_type\": \"ICU\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/beds/allocate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "beds", "allocate"]
+            }
+          }
+        },
+        {
+          "name": "GET Bed Details by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/beds/{{bed_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "beds", "{{bed_id}}"]
+            }
+          }
+        },
+        {
+          "name": "PATCH Release Occupied Bed",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/beds/{{bed_id}}/release",
+              "host": ["{{base_url}}"],
+              "path": ["api", "beds", "{{bed_id}}", "release"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
