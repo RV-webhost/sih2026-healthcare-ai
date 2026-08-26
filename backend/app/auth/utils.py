@@ -17,8 +17,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def get_secret_key():
-    # Enforcing the team rule: strictly pull from config/.env
-    return current_app.config.get("JWT_SECRET_KEY", os.getenv("JWT_SECRET_KEY", "fallback_test_key"))
+    return current_app.config.get("JWT_SECRET_KEY") or os.environ.get("JWT_SECRET_KEY") or "fallback_test_key"
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()

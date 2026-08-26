@@ -4,7 +4,9 @@ from datetime import datetime, timezone
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from app.database import Base
+
+# Replaced the invalid FastAPI Base with the shared Flask instance
+from app.extensions import db 
 
 class UserRole(str, enum.Enum):
     PATIENT = "PATIENT"
@@ -16,7 +18,8 @@ class Gender(str, enum.Enum):
     FEMALE = "FEMALE"
     OTHER = "OTHER"
 
-class User(Base):
+# Inheriting from db.Model allows Flask-Migrate to detect these tables
+class User(db.Model):
     __tablename__ = "users"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
@@ -27,7 +30,7 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
     patient_profile = relationship("Patient", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
-class Patient(Base):
+class Patient(db.Model):
     __tablename__ = "patients"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True)

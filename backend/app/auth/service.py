@@ -4,9 +4,7 @@ from app.auth.models import User, Patient, UserRole
 from app.auth.utils import hash_password, verify_password, create_access_token
 
 def register_user(db: Session, payload: dict):
-    # Dictionary lookup instead of Pydantic dot notation
     if db.query(User).filter(User.email == payload.get("email")).first():
-        # Using Werkzeug exceptions which are standard for Flask
         raise BadRequest("Email already exists.")
     
     user = User(
@@ -18,6 +16,7 @@ def register_user(db: Session, payload: dict):
     db.commit()
     db.refresh(user)
 
+    # Strictly mapping the API's 'name' field to the database's 'full_name' field
     patient = Patient(
         user_id=user.id, 
         full_name=payload.get("name"), 
