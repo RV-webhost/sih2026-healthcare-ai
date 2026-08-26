@@ -4,6 +4,7 @@ from flask import Flask
 from app.config import Config
 from app.extensions import db, migrate, jwt
 from app.api import api_bp
+from app.orchestrator.routes import orchestrator_bp
 from app.auth.routes import auth_bp
 
 # Member 2 Blueprints
@@ -47,6 +48,7 @@ def create_app(config_override=None) -> Flask:
 
     # Register shared API blueprint
     app.register_blueprint(api_bp)
+    app.register_blueprint(orchestrator_bp, url_prefix="/api/v1")
     
     # Register Member 2 module blueprints (Ensuring v1 prefix convention)
     app.register_blueprint(appointments_bp, url_prefix="/api/v1/appointments")
