@@ -1,10 +1,10 @@
-from app.ai.service import extract_intent_and_entities # M1: AI Module
+from app.ai.service import process_ai_request
 from app.orchestrator.schemas import build_success_response, build_error_response
 
 # Downstream service imports (M2, M3, M4, M5)
-from app.doctors.service import check_doctor_availability # M3
-from app.beds.service import check_bed_availability       # M2
-from app.tokens.service import get_queue_status           # M4
+from app.doctors.service import get_doctors, calculate_availability # M3
+from app.beds.service import get_bed_availability       # M2
+from app.tokens.service import calculate_queue_metrics, create_token       # M4
 from app.auth.service import get_patient_profile          # M5
 
 # Handlers for complex multi-step workflows
@@ -18,7 +18,7 @@ class OrchestratorService:
         """
         try:
             # 1. M1 Understands the request[cite: 1]
-            m1_response = extract_intent_and_entities(message)
+            m1_response = process_ai_request(message)
             intent = m1_response.get('intent', 'UNKNOWN')
             entities = m1_response.get('entities', {})
 
@@ -42,10 +42,23 @@ class OrchestratorService:
 
             # --- BED WORKFLOWS ---
             elif intent in ['CHECK_BED_AVAILABILITY', 'REQUEST_BED']:
-                result = check_bed_availability(entities)
+                ward_type = entities.get("ward") or entities.get("ward_type")
+
+                result, message, error_code = get_bed_availability(
+                    ward_type=ward_type
+                )
+
+                if error_code:
+                    return build_error_response(
+                        intent=intent,
+                        message=message,
+                        error_code=error_code,
+                        next_action="RETRY"
+                    )
+
                 return build_success_response(
                     intent=intent,
-                    message="Here is the current bed availability.",
+                    message=message,
                     data=result
                 )
 
