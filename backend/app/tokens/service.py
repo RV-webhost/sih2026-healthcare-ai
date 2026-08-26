@@ -17,10 +17,41 @@ ALLOWED_TRANSITIONS = {
     TokenStatus.CANCELLED: set(),
 }
 
-def verify_appointment(appointment_id: str, patient_id: str) -> Dict[str, Any]:
+def verify_appointment(
+    appointment_id: str,
+    patient_id: str,
+) -> Dict[str, Any]:
+    """
+    Validate that the appointment exists and belongs to the patient,
+    then return the doctor associated with that appointment.
+    """
     if not appointment_id or not patient_id:
-        raise ValueError("INVALID_APPOINTMENT: Invalid appointment or patient ID")
-    return {"valid": True, "doctor_id": "D204", "status": "CONFIRMED"}
+        raise ValueError(
+            "INVALID_APPOINTMENT: Invalid appointment or patient ID"
+        )
+
+    from app.models.m2_models import Appointment
+
+    appointment = Appointment.query.filter(
+        Appointment.id == appointment_id,
+        Appointment.patient_id == patient_id,
+    ).first()
+
+    if not appointment:
+        raise ValueError(
+            "INVALID_APPOINTMENT: Appointment not found or does not belong to patient"
+        )
+
+    if appointment.status != "CONFIRMED":
+        raise ValueError(
+            f"INVALID_APPOINTMENT: Appointment status is {appointment.status}"
+        )
+
+    return {
+        "valid": True,
+        "doctor_id": str(appointment.doctor_id),
+        "status": appointment.status,
+    }
 
 def calculate_queue_metrics(db: Session, token: Token) -> Tuple[int, int]:
     if token.status != TokenStatus.WAITING:
